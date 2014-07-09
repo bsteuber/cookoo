@@ -1,15 +1,7 @@
 (ns cookoo.db.core
   (:require [cookoo.tools.coll :refer [as-seq]]
             [cookoo.tools.validate :as v]
-            [cookoo.db.knowledge-base :as kb]))
-
-(def knowledge-base (atom kp/empty))
-
-(defn clear! []
-  (reset! knowledge-base kp/empty))   
-
-(defn fact! [obj attr value]
-  (swap! knowledge-base kp/fact obj attr value))
+            [cookoo.db.knowledge-base :refer [fact! deny!]]))
 
 (defn facts! [obj & attrs-and-vals]
   (doseq [[[attr value] :when attr] attrs-and-vals]
@@ -19,24 +11,35 @@
   (doseq [val (as-seq values)]
     (fact! obj attr val)))
 
-(defn query [obj attr]
-  (kp/query @knowledge-base obj attr))
-
-(defn inverse [attr value]
-  (kp/inverse @knowledge-base attr value))
-
 (defn validator! [id [pred msg]]
   (when (and pred msg)
     (fact! id :validator (v/validator pred msg))))
 
-(defn attr! [id name clazz & {:keys [card default validator]}]
+(defn iattr! [id name clazz attr-class validator]
   (facts! id
-    [:class :Attr]
+    [:class clazz]
     [:name name]
-    [:attr-class clazz]
-    [:card card]
-    [:default default])
+    [:attr-class attr-class])
   (validator! id validator))
+
+(defn attr! [id name attr-class & {:keys [card default validator]}]
+  (iattr! id name :DbAttr attr-class validator)
+  (facts! id
+    [:card card]
+    [:default default]))
+
+(defn index! [attr index-fn]
+  (fact! attr :index index-fn))
+
+(defn ->index-fn [f generated-attr]
+  (fn [obj val]
+    (->> (for [[os v] (partition 2 (f obj val))
+                o (as-seq os)]
+            [o generated-attr v]))))            
+
+(defn index-attr! [id name attr-class on-attr f & {:keys [validator]}]
+  (iattr! id name :IndexAttr attr-class validator)
+  (index! on-attr (->index-fn f id)))
 
 (defn inst! [id name clazz & attrs-and-vals]
   (apply facts! id

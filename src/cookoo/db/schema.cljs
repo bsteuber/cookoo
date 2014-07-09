@@ -1,5 +1,6 @@
 (ns cookoo.db.schema
-  (:require [cookoo.db.core :refer [attr! class! enum!]
+  (:require [cookoo.db.core :refer [attr! class! enum! index-attr!]
+            [cookoo.db.indexers :as idx]
   	    [cookoo.db.validate :refer [id? validate-transaction]])  
 
 (defn init-schema []
@@ -11,7 +12,9 @@
   (class! :Object "Object" :Any [:class] :validator [id? "Object expected"])
   (class! :Named "Named" [] [:name])
   (class! :Class "Class" :Named [:super :has-attr :validator])
-  (class! :Attr "Attribute" :Named [:attr-class :card :validator :default])
+  (class! :Attr "Attribute" :Named [:attr-class :validator])
+  (class! :DbAttr "DB Attribute" :IAttr [:card :default :index])
+  (class! :IndexAttr "Index Attribute" :IAtrr)
   (class! :Enum "Enumeration" :Named)
 
   (enum! :Card "Cardinality"
@@ -28,6 +31,9 @@
   (attr! :card "cardinality" :Card :default :single)
   (attr! :default "default value" :Any :card :optional)
   (attr! :validator "validator" :Function :card :set)
+  (attr! :index "index" :Function :card :set)
+
+  (index-attr! :instance "instance" :Object :class idx/inverse)
 
   (class! :Expr "Expression")
   (class! :Has-exprs "Has expressions" [] [:exprs])
@@ -64,6 +70,3 @@
   (attr! :binding "binding" :Binding)
   (attr! :bindings "bindings" :Binding :card :List)  
 )
-
-
-

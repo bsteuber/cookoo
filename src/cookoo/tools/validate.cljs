@@ -1,6 +1,5 @@
-(ns cookoo.tools.validate)
-
-(def conjv (comp vec conj))
+(ns cookoo.tools.validate
+  (:require [cookoo.tools.coll :refer [conjv])))
 
 (def validate-state (atom {}))
 
@@ -30,9 +29,28 @@
 	  (put! path res))
 	entry))))
 
+(defn run [validators x]
+  (doseq [val (flatten [validators])]
+    (val x)))
+
+(defn wrap [validators msg]
+  (validator
+    (fn [x]
+      (run validators x))
+    msg))
+
 (defn validate [validators x]
   (reset! validate-state {})
-  (doseq [val (flatten [validators])]
-    (val x))
-  (or (get! [:errors])
-      :ok))
+  (run validators x)
+  (get! [:errors]))
+
+(defn prn! [s]
+  (.log js/console (str s "\n")))
+
+(defn pr-errors [errors & [to-str :or {to-str str}]]
+  (if errors
+    (do (prn! "validation errors:")
+        (doseq [[s x] errors]
+          (prn! (str "  " (to-str x) ": " s)))
+        (prn! (str "\nTotal Errors: " (count errors))))
+    (prn! "Validation passed :)")))

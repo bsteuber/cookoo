@@ -1,23 +1,28 @@
 (ns cookoo.db.access
   (:require [clojure.set :refer [union]]
-  	    [cookoo.db.core :as raw]))
+            [clojure.string :as str]
+            [cookoo.db.knowledge-base :refer [query fact?]]))
 
 (defn hull [f start-set]
   (let [next-set (->> start-set 
-       		      (map f)
-		      (apply hash-set)
-		      (union start-set))]
+                      (map f)
+                      (apply hash-set)
+                      (union start-set))]
     (if (= start-set next-set)
       start-set
       (recur f next-set))))
 
-(defn query [obj attr]
-  (let [result  (raw/query obj attr)
-        default (raw/query attr :default)]
-    (or result default)))
-
-(defn name [x]
+(defn obj-name [x]
   (query x :name))
+
+(defn s [& args]
+  (->> args
+       (map #(or (obj-name %)
+                 (str %)))
+       (str/join " ")))
+
+(defn obj-class [x]
+  (query x :class))
 
 (defn attr-class [attr]
   (query attr :attr-class))
@@ -33,6 +38,16 @@
 
 (defn supers [clazz]
   (hull super #{clazz}))
+
+(defn instance? [obj clazz]
+  ((supers (obj-class obj))
+   clazz))
+
+(defn object? [obj]
+  (instance? obj :Object))
+
+(defn attr? [attr]
+  (instance? attr :Attr))
 
 (defn super-union [clazz attr]
   (->> clazz
@@ -52,7 +67,7 @@
        (remove #(attr-exists? % :default))))
 
 (defn attr-validators [attr]
-  (union (query attr :validator)
-  	 (class-validators (attr-class attr))))
+  [(query attr :validator)
+   (class-validators (attr-class attr))])
 
 
