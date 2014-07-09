@@ -1,4 +1,5 @@
-(ns cookoo.db.core)
+(ns cookoo.db.core
+  (:require [cookoo.tools.validate :as v]))
 
 (def db-atom (atom []))
 
@@ -13,15 +14,18 @@
 
 (defn inverse [attr val])
 
-(defn attr! [id name clazz & {:keys [card default validate]}]
+(defn validator! [id [pred msg]]
+  (when (and pred msg)
+    (fact! id :validator (v/validator pred msg))))
+
+(defn attr! [id name clazz & {:keys [card default validator]}]
   (facts! id
     [:class :Attr]
     [:name name]
     [:attr-class clazz]
     [:card card]
-    [:default default]
-    (when validator
-      [:validator validator]))))
+    [:default default])
+  (validator! id validator))
 
 (defn inst! [id name clazz & attrs-and-vals]
   (apply facts! id
@@ -32,13 +36,15 @@
 (defn class! [id name & [super attrs & {:keys [validator]}]]
   (inst! id name :Class
      [:super super]
-     [:validator validator]
-     [:has-attr attrs]))
+     [:has-attr attrs])
+  (validator! id validator))
 
 (defn enum! [id name & values-and-names]
    (class! id name :Enum)
-   (fact! id :validator (->> values-and-names
-   	     		     (map first)
-			     (apply hash-set)))
+   (let [valid? (->> values-and-names
+ 	             (map first)
+		     (apply hash-set))
+         msg (str name " expected")]
+     (validator! id [valid? msg]))
    (doseq [[v name] values-and-names]
      (inst! v name id)))

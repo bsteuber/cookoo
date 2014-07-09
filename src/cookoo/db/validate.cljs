@@ -1,13 +1,10 @@
 (ns cookoo.db.validate
-  (:require [cookoo.db.access :as db])
+  (:require [cookoo.tools.validate :refer [validator validate]]
+            [cookoo.db.access :as db]))
 
 (defn id? [x]
   (or (keyword? x)
       (instance UUID x)))
-
-(defn validate [validators x]
-  ((apply every-pred (flatten validators))
-   x))
 
 (defn attr-validator [attr]
   (let [attr-val (db/attr-validators attr)	
