@@ -16,6 +16,9 @@
         default (raw/query attr :default)]
     (or result default)))
 
+(defn name [x]
+  (query x :name))
+
 (defn attr-class [attr]
   (query attr :attr-class))
 

@@ -1,18 +1,29 @@
 (ns cookoo.db.core
-  (:require [cookoo.tools.validate :as v]))
+  (:require [cookoo.tools.coll :refer [as-seq]]
+            [cookoo.tools.validate :as v]
+            [cookoo.db.knowledge-base :as kb]))
 
-(def db-atom (atom []))
+(def knowledge-base (atom kp/empty))
 
-(def fact! [obj attr value]
-  (swap! db-atom conj [obj attr value]))
+(defn clear! []
+  (reset! knowledge-base kp/empty))   
+
+(defn fact! [obj attr value]
+  (swap! knowledge-base kp/fact obj attr value))
 
 (defn facts! [obj & attrs-and-vals]
   (doseq [[[attr value] :when attr] attrs-and-vals]
     (fact! obj attr value)))
 
-(defn query [obj attr])
+(def multi! [obj attr values]
+  (doseq [val (as-seq values)]
+    (fact! obj attr val)))
 
-(defn inverse [attr val])
+(defn query [obj attr]
+  (kp/query @knowledge-base obj attr))
+
+(defn inverse [attr value]
+  (kp/inverse @knowledge-base attr value))
 
 (defn validator! [id [pred msg]]
   (when (and pred msg)
@@ -34,9 +45,9 @@
     attrs-and-vals))
 
 (defn class! [id name & [super attrs & {:keys [validator]}]]
-  (inst! id name :Class
-     [:super super]
-     [:has-attr attrs])
+  (inst! id name :Class)
+  (multi! id :super super)
+  (multi! id :has-attr attrs)  
   (validator! id validator))
 
 (defn enum! [id name & values-and-names]
