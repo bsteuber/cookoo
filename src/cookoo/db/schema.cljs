@@ -1,28 +1,55 @@
 (ns cookoo.db.schema
   (:require [cookoo.db.core :refer [attr! class! enum! index-attr!]]
             [cookoo.db.indexers :as idx]
-  	    [cookoo.db.validate :refer [id?]]))  
+            [cookoo.db.knowledge-base :refer [clear! fact!]]
+  	    [cookoo.db.validate :refer [id?]]
+            [cookoo.tools.validate :refer [validator]]))  
+
+(def string-v (validator string? "String expected"))
+(def number-v (validator number? "Number expected"))
+(def fn-v     (validator ifn?    "Function expected"))
+(def id-v     (validator id?     "Object-id expected"))
 
 (defn init-schema []
-  (attr! :name "name" :String :default "")
-  (attr! :class "class" :Class :default :Object)
-  (attr! :super "superclass" :Class :card :list :default :Object)
-  (attr! :has-attr "has attribute" :Attr :card :set)
-  (attr! :attr-class "attribute class" :Class)
-  (attr! :card "cardinality" :Card :default :single)
-  (attr! :default "default value" :Any :card :optional)
-  (attr! :validator "validator" :Function :card :set)
-  (attr! :index "index" :Function :card :set)
+  (clear!)
+  (fact! :super :card :set) ;; needed for bootstrapping
+  (class! :Value "Value" :Value)
+  (class! :HostValue "Host value" :Validated)
+  (class! :HostString "Host string" :HostValue
+          [] 
+          [:validator string-v])
+  (class! :HostFn "Host function" :HostValue 
+          []
+          [:validator fn-v])
+  (class! :HostNumber "Host number" :HostValue 
+          []
+          [:validator number-v])
+  (class! :Named "Named" :Value
+          [[:name "name" :String]])
+  (class! :Object "Object" :Validated
+          [:class "class" :Class] 
+          [:validator id-v])
+  (class! :Validator "Validator" :Object
+          [[:message :HostString "error message"]
+           [:pred :HostFn "validator predicate"]])
+  (class! :Validated "Validated" :Value
+          [[:validator "validators" :HostFunction [:card :list]]])
+  (class! :Class "Class" [:Named :Object]
+          [[:super "superclass" :Class [[:card :set] 
+                                        [:default #{:Object}]]]
+           [:has-attr :Class "has attribute" {:index [:attr-owner 
+                                                      idx/inverse]}]])
+  (class! :Attr "Attribute" [:Named :Object] 
+          [:attr-class :Class "attribute class"]
+          [:default "default value" :Any [:card :optional]]
+          [:card :Card "cardinality" [:default :single]]
+          [:trigger :HostFn "trigger" {:index [:source-attr
+                                               idx/inverse]} ])
+  (class! :Trigger "Trigger" :Object
+          [[:source-attr :Attr "source attribute"]
+           [:target-attr :Attr "target attribute"]
+           [:indexer :HostFn "indexer function"]])
 
-  (class! :Any "Anything" :Any)
-  (class! :Host "Host type" :Any)
-  (class! :String "String" :Host [] :validator [string? "String expected"])
-  (class! :Number "Number" :Host [] :validator [number? "Number expected"])
-  (class! :Function "Function" :Any [] :validator [ifn? "Function expected"])
-  (class! :Object "Object" :Any [:class] :validator [id? "Object expected"])
-  (class! :Named "Named" [] [:name])
-  (class! :Class "Class" :Named [:super :has-attr :validator])
-  (class! :Attr "Attribute" :Named [:attr-class :validator])
   (class! :DbAttr "DB Attribute" :IAttr [:card :default :index])
   (class! :IndexAttr "Index Attribute" :IAtrr)
   (class! :Enum "Enumeration" :Named)
@@ -33,8 +60,7 @@
     [:set "Set of values"]
     [:list "List of values"])
 
-
-  (index-attr! :instance "instance" :Object :class idx/inverse)
+  #_(index-attr! :instance "instance" :Object :class idx/inverse)
 
   (class! :Expr "Expression")
   (class! :Has-exprs "Has expressions" [] [:exprs])

@@ -1,5 +1,5 @@
 (ns cookoo.db.knowledge-base
-  (:require [cookoo.tools.coll :refer [conjv conjs]]
+  (:require [cookoo.tools.coll :refer [as-seq conjv conjs]]
             [cookoo.tools.log :refer [log]]))
 
 (def kb (atom {}))
@@ -83,3 +83,19 @@
        (constantly value)))
   (doseq [[iobj iattr ival] (index-block obj attr value)]
      (update-index! iobj iattr conjs ival)))
+
+(defn block! [block]
+  (doseq [[o a v] block]
+    (fact! o a v)))
+
+(defn facts! [obj & attr-val-pairs]
+  (->> attr-val-pairs
+       (map (partial cons obj))            
+       block!))
+
+(defn apply! [obj & args]
+  (apply apply facts! args))
+
+(defn multi! [obj attr values]
+  (doseq [val (as-seq values)]
+    (fact! obj attr val)))
