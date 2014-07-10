@@ -37,20 +37,19 @@
   (class! :Class "Class" [:Named :Object]
           [[:super "superclass" :Class [[:card :set] 
                                         [:default #{:Object}]]]
-           [:has-attr :Class "has attribute" {:index [:attr-owner 
-                                                      idx/inverse]}]])
+           [:has-attr :Class "has attribute" {:index :attr-owner}]
+           [:instance :Object "instance" {:index :class}]])
   (class! :Attr "Attribute" [:Named :Object] 
-          [:attr-class :Class "attribute class"]
-          [:default "default value" :Any [:card :optional]]
-          [:card :Card "cardinality" [:default :single]]
-          [:trigger :HostFn "trigger" {:index [:source-attr
-                                               idx/inverse]} ])
+          [[:attr-class :Class "attribute class"]
+           [:card :Card "cardinality" [:default :single]]
+           [:trigger :Trigger "trigger" {:index :source-attr} ]])
   (class! :Trigger "Trigger" :Object
           [[:source-attr :Attr "source attribute"]
            [:target-attr :Attr "target attribute"]
            [:indexer :HostFn "indexer function"]])
-
-  (class! :DbAttr "DB Attribute" :IAttr [:card :default :index])
+  (class! :Has-default "Has default" :Attr
+          [[:default "default value" :Value [:card :optional]]])
+  (class! :DbAttr "DB Attribute" :Has-default)
   (class! :IndexAttr "Index Attribute" :IAtrr)
   (class! :Enum "Enumeration" :Named)
 
