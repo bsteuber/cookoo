@@ -1,7 +1,9 @@
 (ns cookoo.db.access
+  (:refer-clojure :exclude [object? instance?])
   (:require [clojure.set :refer [union]]
             [clojure.string :as str]
-            [cookoo.db.knowledge-base :refer [query fact?]]))
+            [cookoo.db.knowledge-base :refer [query fact?]]
+            [cookoo.tools.log :refer [log]]))
 
 (defn hull [f start-set]
   (let [next-set (->> start-set 

@@ -1,13 +1,23 @@
 (ns cookoo.db.schema
-  (:require [cookoo.db.core :refer [attr! class! enum! index-attr!]
+  (:require [cookoo.db.core :refer [attr! class! enum! index-attr!]]
             [cookoo.db.indexers :as idx]
-  	    [cookoo.db.validate :refer [id? validate-transaction]])  
+  	    [cookoo.db.validate :refer [id?]]))  
 
 (defn init-schema []
+  (attr! :name "name" :String :default "")
+  (attr! :class "class" :Class :default :Object)
+  (attr! :super "superclass" :Class :card :list :default :Object)
+  (attr! :has-attr "has attribute" :Attr :card :set)
+  (attr! :attr-class "attribute class" :Class)
+  (attr! :card "cardinality" :Card :default :single)
+  (attr! :default "default value" :Any :card :optional)
+  (attr! :validator "validator" :Function :card :set)
+  (attr! :index "index" :Function :card :set)
+
   (class! :Any "Anything" :Any)
-  (class! :Prim "Primitive" :Any)
-  (class! :String "String" :Prim [] :validator [string? "String expected"])
-  (class! :Number "Number" :Prim [] :validator [number? "Number expected"])
+  (class! :Host "Host type" :Any)
+  (class! :String "String" :Host [] :validator [string? "String expected"])
+  (class! :Number "Number" :Host [] :validator [number? "Number expected"])
   (class! :Function "Function" :Any [] :validator [ifn? "Function expected"])
   (class! :Object "Object" :Any [:class] :validator [id? "Object expected"])
   (class! :Named "Named" [] [:name])
@@ -23,21 +33,12 @@
     [:set "Set of values"]
     [:list "List of values"])
 
-  (attr! :name "name" :String :default "")
-  (attr! :class "class" :Class :default :Object)
-  (attr! :super "superclass" :Class :card :list :default :Object)
-  (attr! :has-attr "has attribute" :Attr :card :set)
-  (attr! :attr-class "attribute class" :Class)
-  (attr! :card "cardinality" :Card :default :single)
-  (attr! :default "default value" :Any :card :optional)
-  (attr! :validator "validator" :Function :card :set)
-  (attr! :index "index" :Function :card :set)
 
   (index-attr! :instance "instance" :Object :class idx/inverse)
 
   (class! :Expr "Expression")
   (class! :Has-exprs "Has expressions" [] [:exprs])
-  (class! :Prim-expr "Primitive Expression" [:Expr] [:prim])
+  (class! :Host-expr "Host Expression" [:Expr] [:host])
   (class! :Comp-expr "Composed Expression" :Expr)
   (class! :Vec  "Vector" [:Comp-expr :Has-exprs])
   (class! :Set  "Set" [:Comp-expr :Has-exprs])
@@ -49,7 +50,7 @@
   (class! :Global "Global Variable" :Var)
   (class! :Binding "Binding" [] [:lhs :rhs])
   (class! :Has-bindings "Has bindings" [] [:bindings])
-  (class! :Let "Let" [:Expr :Has-bindings :Has-exprs] 
+  (class! :Let "Let" [:Expr :Has-bindings :Has-exprs])
   (class! :Toplevel "Toplevel Form")
   (class! :Gets-Args "Gets Arguments" [] [:args])
   (class! :Fn "Function definition" [:Toplevel :Named :Expr :Has-exprs :Gets-args])
@@ -57,7 +58,7 @@
   (class! :Def "Global Variable Definition" :Toplevel [:binding])
   (class! :Ns "Namespace" [:Named] [:toplevel])
 
-  (attr! :prim "primitive" :Prim)
+  (attr! :host "host value" :Host)
   (attr! :op "operator" :Expr)
   (attr! :exprs "expressions" :Expr :card :List)
   (attr! :args "arguments" :Local :card :List)

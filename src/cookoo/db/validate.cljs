@@ -1,11 +1,11 @@
 (ns cookoo.db.validate
-  (:require [cookoo.tools.validate :refer [validator validate run]]
+  (:require [cookoo.tools.validate :refer [validator validate run wrap]]
             [cookoo.db.access :as db]
             [cookoo.db.knowledge-base :as kb]))
 
 (defn id? [x]
   (or (keyword? x)
-      (instance UUID x)))
+      (instance? UUID x)))
 
 (defn attr-v [attr]
   (wrap (db/attr-validators attr)       

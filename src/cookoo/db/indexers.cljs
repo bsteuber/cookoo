@@ -4,7 +4,7 @@
   [val obj])
 
 (defn str-prefixes [s]
-  (map #(sub s 0 %)
+  (map #(subs s 0 %)
        (range 0 (inc (count s)))))
 
 (defn prefix [obj s]

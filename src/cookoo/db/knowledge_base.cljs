@@ -1,5 +1,6 @@
 (ns cookoo.db.knowledge-base
-  (:require [cookoo.tools.coll :refer [conjv conjs])))
+  (:require [cookoo.tools.coll :refer [conjv conjs]]
+            [cookoo.tools.log :refer [log]]))
 
 (def kb (atom {}))
 
@@ -22,13 +23,13 @@
   (query-kb [:log]))
 
 (defn update! [& update-args]
-  (apply swap! kb update-in  update-args))
+  (apply swap! kb update-in update-args))
 
 (defn update-data! [obj attr & update-args]
-  (update! [:data attr obj] update-args))
+  (apply update! [:data attr obj] update-args))
 
 (defn update-index! [obj attr & update-args]
-  (update! [:index attr obj] update-args))
+  (apply update! [:index attr obj] update-args))
 
 (defn log! [method obj attr value]
   (update! [:log] conjv [method obj attr value]))
@@ -36,7 +37,7 @@
 (defn query [obj attr]
   (or (query-index obj attr)
       (query-data  obj attr)
-      (query attr :default)))
+      (query-data  attr :default)))
 
 (defn card [attr]
   (query attr :card))
@@ -50,25 +51,28 @@
       (some #{value} val)
       (= value val))))
 
-(defn index-additions [obj attr value]
-  (->> (query attr :index)
-       (map #(% obj value))
-       (apply concat))))
+(defn index-block [obj attr value]
+  (let [index-fns (query attr :index)       
+        results (map #(% obj value) index-fns)
+        block   (vec (apply concat results))]
+    block))
 
 (defn deny-nolog! [obj attr value]
   (update-data! obj attr
      (case (card attr)
-       :list #(remove #{value} %)
+       :list #(vec (remove #{value} %))
        :set  #(disj % value)
        (constantly nil)))
-  (doseq [[iobj iattr ival] (index-additions obj attr value)]
-     (update-index! iobj iattr disj ival)))
+  (let [index-facts (index-block obj attr value)]
+    (doseq [[iobj iattr ival] index-facts]
+      (let [ind (query-index iobj iattr)]
+        (update-index! iobj iattr disj ival)))))
 
 (defn deny! [obj attr value]
   (log! :deny obj attr value)
   (deny-nolog! obj attr value))
 
-(defn fact! [obj attr value]
+(defn fact! [obj attr value] 
   (log! :fact obj attr value)
   (when-not (multi? attr)
     (deny-nolog! obj attr (query obj attr)))    
@@ -77,5 +81,5 @@
        :list #(conjv % value)
        :set  #(conjs % value)
        (constantly value)))
-  (doseq [[iobj iattr ival] (index-additions obj attr value)]
+  (doseq [[iobj iattr ival] (index-block obj attr value)]
      (update-index! iobj iattr conjs ival)))
