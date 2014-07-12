@@ -4,6 +4,8 @@
 
 (def db (atom {}))
 
+(defn save [] @db)
+
 (defn load! [store]
   (reset! db store))
 
@@ -19,7 +21,8 @@
 (clear!)
 
 (defn query [obj attr]
-  (kb/query (get! :index) obj attr))
+  (log "(query)" obj attr)
+  (log (kb/query (get! :index) obj attr)))
 
 (defn fact? [fact]
   (contains? (get! :facts) fact))

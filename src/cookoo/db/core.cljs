@@ -48,9 +48,8 @@
               [:title title])
             facts)))
 
-(defn validator! [id msg pred]
-  (object! id :Validator
-           [:message msg]
+(defn validator! [id title pred]
+  (object! id title :Validator
            [:pred pred]))
 
 (defn trigger! [id target-attr indexer]

@@ -7,7 +7,7 @@
             [cookoo.tools.validate :refer [pr-errors]]))
 
 (defn main []
-  (s/init-schema)
+  #_(s/init-schema)
   #_(pr-errors (v/validate-block (kb/query-log))
              db/s))
  

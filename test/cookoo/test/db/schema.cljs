@@ -1,16 +1,20 @@
 (ns cookoo.test.db.schema
   (:require-macros [cemerick.cljs.test :refer [deftest testing is]])
   (:require [cemerick.cljs.test :as t]
-            #_[cookoo.db.knowledge-base :refer [query query-log clear! fact! deny!]]
+            [cookoo.db.core :refer [fact!]]
+            [cookoo.db.transactor :refer [query clear! deny! save load! commit!]]
             [cookoo.db.schema :refer [init-schema]]
-            [cookoo.db.validate :refer [validate-block]]))
+            [cookoo.db.validate :refer [validate-block]]
+            [cookoo.tools.debug :refer [fail log]]))
 
-#_(deftest schema-test
+(deftest schema-test  
   (testing "init schema"
     (clear!)
-    (init-schema))
+    (init-schema)
+    (commit!))
   (testing "object validator"
-    (fact! :foo :validator list?)
-    (is (set? (query :foo :validator))))
-#_  (testing "validates"
-    (is (empty? (validate-block (query-log))))))
+      (let [vs (query :str-v :pred)
+            v (first vs)]   
+        (is (set? vs))
+        (is (v "foo"))
+        (is (not (v 42))))))

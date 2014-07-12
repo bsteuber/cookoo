@@ -3,21 +3,30 @@
             [cookoo.db.indexers :as idx]
             [cookoo.db.knowledge-base :as kb]
   	    [cookoo.db.uid :refer [id?]]
-            [cookoo.tools.debug :refer [fail]]
+            [cookoo.tools.debug :refer [fail log]]
             [cookoo.tools.validate :refer [validator]]))  
+
+(extend-type js/Function
+  IPrintWithWriter
+  (-pr-writer [a writer opts]
+    (-write writer "#<Fn>")))
 
 (defn init-schema []
   (class! :Value "Value" :Value)
   (class! :Host-val "Host value" :Value :Validated)
+  (validator! :str-v "String validator" string?)
+  (validator! :fn-v "Function validator" ifn?)
+  (validator! :num-v "Number validator" number?)
+  (validator! :obj-v "Object validator" id?)
   (class! :Host-str "Host string" :Host-value
-          [:validator (validator! :str-v "String expected" string?)])
+          [:validator :str-v])
   (class! :Host-fn "Host function" :Host-value
-          [:validator (validator! :fn-v "Function expected" ifn?)])
+          [:validator :fn-v])
   (class! :Host-num "Host number" :Host-value
-          [:validator (validator! :num-v "Number expected" number?)])
+          [:validator :num-v])
   (class! :Object "Object" :Value :Validated
           [[:class "class" :Class]] 
-          [:validator (validator! :obj-v "Object expected" id?)])
+          [:validator :obj-v])
   (class! :Titled "Titled" :Value
           [[:title "title" :String]])
   (class! :Inherits "Inherits" :Object
@@ -30,9 +39,8 @@
   (class! :Metaclass "Metaclass" :Class :Metaclass)  
   (class! :Validated "Validated" :Class :Metaclass
           [[:validator "validators" :HostFn]])            
-  (class! :Validator "Validator" :Object
-          [[:message "error message" :HostString]
-           [:pred "validator predicate" :HostFn]])  
+  (class! :Validator "Validator" :Titled
+          [[:pred "validator predicate" :HostFn]])  
   (class! :Attr "Attribute" [:Titled :Object] 
           [[:attr-owner "attribute owner" :Class]
            [:attr-class "attribute class" :Class]
