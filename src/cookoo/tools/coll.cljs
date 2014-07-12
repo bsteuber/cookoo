@@ -1,7 +1,11 @@
 (ns cookoo.tools.coll)
 
 (def conjv (comp vec conj))
-(def conjs (comp #(apply hash-set %) conj))
+
+(defn conjs [coll x]
+  (if (nil? coll)
+    #{x}
+    (conj coll x)))
 
 (defn as-seq [val]
   (if (sequential? val)

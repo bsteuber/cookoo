@@ -1,98 +1,49 @@
 (ns cookoo.db.schema
-  (:require [cookoo.db.core :refer [attr! class! enum! index-attr!]]
+  (:require [cookoo.db.core :refer [fact! class! enum! validator!]]
             [cookoo.db.indexers :as idx]
-            [cookoo.db.knowledge-base :refer [clear! fact!]]
-  	    [cookoo.db.validate :refer [id?]]
+            [cookoo.db.knowledge-base :as kb]
+  	    [cookoo.db.uid :refer [id?]]
+            [cookoo.tools.debug :refer [fail]]
             [cookoo.tools.validate :refer [validator]]))  
 
-(def string-v (validator string? "String expected"))
-(def number-v (validator number? "Number expected"))
-(def fn-v     (validator ifn?    "Function expected"))
-(def id-v     (validator id?     "Object-id expected"))
-
 (defn init-schema []
-  (clear!)
-  (fact! :super :card :set) ;; needed for bootstrapping
   (class! :Value "Value" :Value)
-  (class! :HostValue "Host value" :Validated)
-  (class! :HostString "Host string" :HostValue
-          [] 
-          [:validator string-v])
-  (class! :HostFn "Host function" :HostValue 
-          []
-          [:validator fn-v])
-  (class! :HostNumber "Host number" :HostValue 
-          []
-          [:validator number-v])
-  (class! :Named "Named" :Value
-          [[:name "name" :String]])
-  (class! :Object "Object" :Validated
-          [:class "class" :Class] 
-          [:validator id-v])
+  (class! :Host-val "Host value" :Value :Validated)
+  (class! :Host-str "Host string" :Host-value
+          [:validator (validator! :str-v "String expected" string?)])
+  (class! :Host-fn "Host function" :Host-value
+          [:validator (validator! :fn-v "Function expected" ifn?)])
+  (class! :Host-num "Host number" :Host-value
+          [:validator (validator! :num-v "Number expected" number?)])
+  (class! :Object "Object" :Value :Validated
+          [[:class "class" :Class]] 
+          [:validator (validator! :obj-v "Object expected" id?)])
+  (class! :Titled "Titled" :Value
+          [[:title "title" :String]])
+  (class! :Inherits "Inherits" :Object
+          [[:inherit "inherit" :Object]])
+  (class! :Class "Class" [:Titled :Inherits] :Metaclass
+          [[:has-attr "has attribute" :Class 
+            {:index :attr-owner}]
+           [:instance "instance" :Object
+            {:index :class}]])
+  (class! :Metaclass "Metaclass" :Class :Metaclass)  
+  (class! :Validated "Validated" :Class :Metaclass
+          [[:validator "validators" :HostFn]])            
   (class! :Validator "Validator" :Object
-          [[:message :HostString "error message"]
-           [:pred :HostFn "validator predicate"]])
-  (class! :Validated "Validated" :Value
-          [[:validator "validators" :HostFunction [:card :list]]])
-  (class! :Class "Class" [:Named :Object]
-          [[:super "superclass" :Class [[:card :set] 
-                                        [:default #{:Object}]]]
-           [:has-attr :Class "has attribute" {:index :attr-owner}]
-           [:instance :Object "instance" {:index :class}]])
-  (class! :Attr "Attribute" [:Named :Object] 
-          [[:attr-class :Class "attribute class"]
-           [:card :Card "cardinality" [:default :single]]
-           [:trigger :Trigger "trigger" {:index :source-attr} ]])
-  (class! :Trigger "Trigger" :Object
-          [[:source-attr :Attr "source attribute"]
-           [:target-attr :Attr "target attribute"]
-           [:indexer :HostFn "indexer function"]])
+          [[:message "error message" :HostString]
+           [:pred "validator predicate" :HostFn]])  
+  (class! :Attr "Attribute" [:Titled :Object] 
+          [[:attr-owner "attribute owner" :Class]
+           [:attr-class "attribute class" :Class]
+           [:attr-reader "attribute reader" :HostFn]
+           [:index "index" :Index {:index :source-attr} ]])
+  (class! :Index "Index" :Object
+          [[:source-attr "source attribute" :Attr]
+           [:target-attr "target attribute" :Attr]
+           [:indexer "indexer function" :HostFn]])
   (class! :Has-default "Has default" :Attr
-          [[:default "default value" :Value [:card :optional]]])
+          [[:default "default value" :Value [:slot-type :optional]]])
   (class! :DbAttr "DB Attribute" :Has-default)
-  (class! :IndexAttr "Index Attribute" :IAtrr)
-  (class! :Enum "Enumeration" :Named)
-
-  (enum! :Card "Cardinality"
-    [:single "Single value"]
-    [:optional "Optional value"]
-    [:set "Set of values"]
-    [:list "List of values"])
-
-  #_(index-attr! :instance "instance" :Object :class idx/inverse)
-
-  (class! :Expr "Expression")
-  (class! :Has-exprs "Has expressions" [] [:exprs])
-  (class! :Host-expr "Host Expression" [:Expr] [:host])
-  (class! :Comp-expr "Composed Expression" :Expr)
-  (class! :Vec  "Vector" [:Comp-expr :Has-exprs])
-  (class! :Set  "Set" [:Comp-expr :Has-exprs])
-  (class! :Mapping "Mapping" [] [:map-key :map-val])
-  (class! :Map "Map" :Comp-expr [:mappings])
-  (class! :Call "Call" [:Comp-expr :Has-exprs] [:op])
-  (class! :Var "Variable" [:Named :Expr])
-  (class! :Local "Local Variable" :Var)
-  (class! :Global "Global Variable" :Var)
-  (class! :Binding "Binding" [] [:lhs :rhs])
-  (class! :Has-bindings "Has bindings" [] [:bindings])
-  (class! :Let "Let" [:Expr :Has-bindings :Has-exprs])
-  (class! :Toplevel "Toplevel Form")
-  (class! :Gets-Args "Gets Arguments" [] [:args])
-  (class! :Fn "Function definition" [:Toplevel :Named :Expr :Has-exprs :Gets-args])
-  (class! :Mac "Macro definition" [:Toplevel :Named :Has-exprs :Gets-args])
-  (class! :Def "Global Variable Definition" :Toplevel [:binding])
-  (class! :Ns "Namespace" [:Named] [:toplevel])
-
-  (attr! :host "host value" :Host)
-  (attr! :op "operator" :Expr)
-  (attr! :exprs "expressions" :Expr :card :List)
-  (attr! :args "arguments" :Local :card :List)
-  (attr! :map-key "mapping key" :Expr)
-  (attr! :map-val "mapping value" :Expr)
-  (attr! :mappings "mappings" :Mapping :card :List)
-  (attr! :toplevel "toplevel items" :Toplevel :card :Set)
-  (attr! :lhs "left-handed side" :Var)
-  (attr! :rhs "right-handed side" :Expr)
-  (attr! :binding "binding" :Binding)
-  (attr! :bindings "bindings" :Binding :card :List)  
-)
+  (class! :IndexAttr "Index Attribute" :Atrr)
+  (class! :Enum "Enumeration" :Titled))

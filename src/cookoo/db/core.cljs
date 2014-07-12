@@ -1,40 +1,52 @@
 (ns cookoo.db.core
-  (:require [cookoo.tools.coll :refer [as-seq]]
-            [cookoo.tools.log :refer [log]]
+  (:require [cookoo.tools.args :refer [parse-optargs]]
+            [cookoo.tools.coll :refer [as-seq]]
+            [cookoo.tools.debug :refer [fail log]]
             [cookoo.tools.validate :as v]
-            [cookoo.db.knowledge-base :as kb]
-            [cookoo.db.indexers :as idx]))
+            [cookoo.db.transactor :as db]
+            [cookoo.db.indexers :as idx]
+            [cookoo.db.uid :refer [id?]]))
 
-(def query kb/query)
-(def fact! kb/fact!)
-(def deny! kb/deny!)
+(defn fact! [o a v]
+  (db/fact! [o a v]))
+
+(defn check-facts [s facts]
+  (doseq [f (remove nil? facts)]
+    (when-not (and (seqable? f)
+                   (= (count f) 2))
+      (fail "Illegal fact in" s f))))
 
 (defn block! [block]
-  (doseq [[o a v] block]
-    (fact! o a v)))
+  (doseq [line block]
+    (apply fact! line)))
 
-(defn facts! [obj & attr-val-pairs]
-  (->> attr-val-pairs
-       (map (partial cons obj))            
-       block!))
+(defn facts! [obj & facts]
+  #_(log "(facts!)" obj facts)
+  (check-facts "facts!" facts)
+  (->> facts
+       (remove nil?)   
+       (map (partial cons obj))
+       block!)
+  obj)
 
 (defn apply! [obj & args]
-  (apply apply facts! args))
+  #_(log "(apply!)" obj args)
+  (apply apply facts! obj args))
 
 (defn multi! [obj attr values]
-  (doseq [val (as-seq values)]
+  (doseq [val (as-seq values)]    
     (fact! obj attr val)))
 
-(defn object! [id clazz & facts]
-  (apply! facts! id
-          [:class clazz]
-          facts)
-  id)
-
-(defn named! [id clazz name & args]
-  (apply! object! clazz
-          [:name name]          
-          facts))
+(defn object! [id & args]
+  (let [[title clazz & facts :as p] (parse-optargs args string? id?)]   
+    #_(log "(object!)" title clazz facts)
+    (check-facts "object!" facts)
+    (apply! id
+            (when clazz
+              [:class clazz])
+            (when title
+              [:title title])
+            facts)))
 
 (defn validator! [id msg pred]
   (object! id :Validator
@@ -46,13 +58,13 @@
            [:target-attr target-attr]
            [:indexer indexer]))
 
-(defn attr! [owner-class id name attr-class & options-and-facts]
-  (let [[options & facts] (if (map? (first options-and-facts)
-                                    options-and-facts
-                                    (cons {} options-and-facts)))
+(defn attr! [owner-class id title attr-class & args]
+  (let [[options & facts] (parse-optargs args map?)        
         {:keys [index]} options
-        clazz (if index :IndexAttr :DbAttr)]            
-    (named! id clazz name
+        clazz (if index :IndexAttr :DbAttr)]    
+    #_(log "(attr!)" owner-class id title)
+    (check-facts "attr!" facts)
+    (apply object! id title clazz
            [:owner-class owner-class]
            [:attr-class attr-class]
            facts)
@@ -61,20 +73,37 @@
       (trigger! on-attr id (or f idx/inverse))))
   id)
 
-(defn class! [id name & [super attrs & facts]]  
-  (named! id :Class name)
-  (multi! id :super super)
-  (doseq [attr-spec attrs]
-    (apply attr! id attr-spec))
-  (apply! id facts)
-  id)
+(defn seq-of? [pred coll]
+  #_(log "(seq-of?)" coll (sequential? coll))
+  (and (sequential? coll)
+       (every? pred coll)))
 
-(defn enum! [id name & values-and-names]
-   (let [valid? (->> values-and-names
+(defn attr-specs? [specs]
+  (seq-of? sequential? specs))
+
+(defn parents? [parents]
+  (or (id? parents)
+      (seq-of? id? parents)))
+
+(defn child! [])
+
+(defn class! [id title & args]  
+  (let [[parent meta options attr-specs & facts :as parsed]  
+        (parse-optargs args parents? id? map? attr-specs?)]
+    #_(log "(class!)" id parent meta title facts)
+    (check-facts "class!" facts)    
+    (object! id title meta)
+    (multi! id :parent parent)
+    (doseq [attr-spec attr-specs]
+      (apply attr! id attr-spec))
+    (apply! id facts)))
+
+(defn enum! [id title & values-and-titles]
+   (let [valid? (->> values-and-titles
  	             (map first)
 		     (apply hash-set))
-         msg (str name " expected")]
-     (class! id name :Enum []
-             [:validator (v/validator valid? msg)]))
-   (doseq [[v name] values-and-names]
-     (named! v id name)))
+         msg (str title " expected")]
+     (doseq [[v title] values-and-titles]
+       (object! v title id))
+     (class! id title :Enum []
+             [:validator (v/validator valid? msg)])))

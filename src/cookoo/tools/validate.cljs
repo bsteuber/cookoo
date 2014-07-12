@@ -1,6 +1,6 @@
 (ns cookoo.tools.validate
   (:require [cookoo.tools.coll :refer [conjv]]
-            [cookoo.tools.log :refer [log]]))
+            [cookoo.tools.debug :refer [log]]))
 
 (def validate-state (atom {}))
 
