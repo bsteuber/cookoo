@@ -8,27 +8,20 @@
                          :id "dev",
                          :compiler
                          {:pretty-print true,
-                          :output-to "js/cookoo.js",
+                          :output-to "build/cookoo.js",
                           :optimizations :whitespace}}
                         {:source-paths ["src" "test"],
                          :id "test",
                          :compiler
                          {:pretty-print true,
-                          :output-to "js/cookoo_test.js",
+                          :output-to "build/cookoo.js",
                           :optimizations :whitespace}}
-                        {:source-paths ["src"],
-                         :id "node",
-                         :compiler
-                         {:pretty-print true,
-                          :output-to "js/cookoo_node.js",
-                          :optimizations :advanced
-                          :target :nodejs}}
                         {:source-paths ["src"],
                          :id "release",
                          :compiler
                          {:pretty-print true,
-                          :output-to "js/cookoo.js",
+                          :output-to "build/cookoo.js",
                           :optimizations :advanced}}]
                :test-commands {"unit" ["phantomjs" 
                                        :runner
-                                       "js/cookoo_test.js"]}})
+                                       "build/cookoo_test.js"]}})

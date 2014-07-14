@@ -6,24 +6,59 @@
             [cookoo.tools.debug :refer [fail log]]
             [cookoo.tools.validate :refer [validator]]))  
 
-(extend-type js/Function
-  IPrintWithWriter
-  (-pr-writer [a writer opts]
-    (-write writer "#<Fn>")))
+(declare str-v fn-v num-v obj-v
+         Host-type Host Host-str Host-fn Host-num
+         Class-c Object-c
 
-(defn init-schema []
-  (class! :Value "Value" :Value)
-  (class! :Host-val "Host value" :Value :Validated)
-  (validator! :str-v "String validator" string?)
-  (validator! :fn-v "Function validator" ifn?)
-  (validator! :num-v "Number validator" number?)
-  (validator! :obj-v "Object validator" id?)
+         Callable-c Function-c
+         Boxed-type Boxed-val Boxed-str Boxed-fn)
+
+(defn host-schema []
+  (def str-v
+    (db/validator! "String validator" string?))
+  (def fn-v
+    (db/validator! "Function validator" ifn?))
+  (def num-v
+    (db/validator! "Number validator" number?))
+  (def obj-v
+    (db/validator! "Object validator" id?))
+  (class! :Host-type "Host type" :Validated)
+  (class! :Host-val "Host value" :Value :Host-type)
   (class! :Host-str "Host string" :Host-value
           [:validator :str-v])
   (class! :Host-fn "Host function" :Host-value
           [:validator :fn-v])
   (class! :Host-num "Host number" :Host-value
           [:validator :num-v])
+
+)
+
+(defn host-type! [name pred])
+
+(defn init []
+)
+
+
+(defn function-schema []
+  (class! :Callable "Callable" :Value :Metaclass
+          [[:call "call" :Host-fn]])
+  (class! :Function "Function" :Value :Callable
+          [[:args "argument list" :Arg-list]
+           [:return "return class" :Class]])
+)
+
+(defn boxed-schema []
+  (class! :Boxed-type "Boxed type" :Validated :Metaclass)
+  (class! :Boxed-val "Boxed host value" :Value :Boxed-type
+          [[:host-val "host value" :Host-val]])
+  (class! :Boxed-Function "Host function" :Function
+          
+          [[]]))
+
+
+
+(defn init-schema []
+  (class! :Value "Value" :Value)
   (class! :Object "Object" :Value :Validated
           [[:class "class" :Class]] 
           [:validator :obj-v])

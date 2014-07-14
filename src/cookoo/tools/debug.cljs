@@ -1,5 +1,10 @@
 (ns cookoo.tools.debug)
 
+(extend-type js/Function
+  IPrintWithWriter
+  (-pr-writer [a writer opts]
+    (-write writer "#<Fn>")))
+
 (defn s [& objs]
   (pr-str-with-opts objs (assoc (pr-opts) :readably false)))
 

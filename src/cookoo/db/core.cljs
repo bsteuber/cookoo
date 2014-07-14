@@ -5,7 +5,7 @@
             [cookoo.tools.validate :as v]
             [cookoo.db.transactor :as db]
             [cookoo.db.indexers :as idx]
-            [cookoo.db.uid :refer [id?]]))
+            [cookoo.db.uid :refer [id? fresh-uid]]))
 
 (defn fact! [o a v]
   (db/fact! [o a v]))
@@ -36,6 +36,20 @@
 (defn multi! [obj attr values]
   (doseq [val (as-seq values)]    
     (fact! obj attr val)))
+
+(defn call! [fn-id & args]
+  (let [f (query fn-id :call)]
+    ;;todo check argspec
+    (apply f args)))
+
+(defn new! [class-id obj]
+  (let [id (fresh-uid)
+        constructor (query class-id :constructor)]
+    
+    (call! constructor id obj)))
+
+
+
 
 (defn object! [id & args]
   (let [[title clazz & facts :as p] (parse-optargs args string? id?)]   

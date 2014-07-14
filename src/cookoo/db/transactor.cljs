@@ -55,9 +55,3 @@
   (index! (get! :facts))
   (index! (implicit-facts)))
 
-
-
-
-
-
-
